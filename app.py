@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # ==========================================
 # 1. PAGE CONFIGURATION & CUSTOM CSS
 # ==========================================
-st.set_page_config(page_title="ItTechies Digital Twin", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="ItTechies Digital Twin", page_icon="📱", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown("""
 <style>
@@ -171,9 +171,11 @@ with tab1:
     with col_op2:
         tat_bins_current = pd.cut(df_view['Current_TAT'], bins=[-1, 1, 3, 16], labels=['Instant (<1d)', 'Standard (3d)', 'Delayed (>3d)']).value_counts()
         tat_bins_proposed = pd.cut(df_view['Proposed_TAT'], bins=[-1, 1, 3, 16], labels=['Instant (<1d)', 'Standard (3d)', 'Delayed (>3d)']).value_counts()
-        df_tat_shift = pd.DataFrame({'Current': tat_bins_current, 'Proposed': tat_bins_proposed}).reset_index().melt(id_vars='index', var_name='System', value_name='Volume')
         
-        fig_shift = px.bar(df_tat_shift, x='index', y='Volume', color='System', barmode='group',
+        # Renamed 'index' to 'Wait Time' for cleaner tooltips
+        df_tat_shift = pd.DataFrame({'Current': tat_bins_current, 'Proposed': tat_bins_proposed}).reset_index().rename(columns={'index': 'Wait Time'}).melt(id_vars='Wait Time', var_name='System', value_name='Volume')
+        
+        fig_shift = px.bar(df_tat_shift, x='Wait Time', y='Volume', color='System', barmode='group',
                            title='Wait Time Shift', color_discrete_sequence=['#ff9999', '#66b3ff'])
         st.plotly_chart(clean_layout(fig_shift), use_container_width=True)
         
@@ -201,8 +203,9 @@ with tab1:
         ))
         st.plotly_chart(clean_layout(fig_gauge), use_container_width=True)
         
-        # Strategic Insight Callout
-        st.success("💡 **Strategic Insight:** By moving Class A & B parts to a local Consignment MSL, we bypass the 3-day logistics bottleneck, successfully serving 88% of demand instantly.")
+    # FULL WIDTH Strategic Insight Callout
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.success("💡 **Strategic Insight:** By moving Class A & B parts to a local Consignment MSL, we bypass the 3-day logistics bottleneck, successfully serving **88% of demand instantly.**")
 
     st.markdown("---")
     df_seas = df_view.groupby(['Month', 'Category'])['Qty'].sum().reset_index()
@@ -232,12 +235,13 @@ with tab2:
         st.plotly_chart(clean_layout(fig_fin), use_container_width=True)
 
     with col_fin2:
-        # Replaced Pie Chart with Treemap
         df_cat = df_view.groupby('Category')['Total_Value'].sum().reset_index()
         fig_tree = px.treemap(df_cat, path=['Category'], values='Total_Value',
                               title="Working Capital Allocation by Part",
                               color='Total_Value', color_continuous_scale='Purp')
         fig_tree.update_layout(paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=40, l=10, r=10, b=10))
+        # Treemap Tooltip Formatting Upgrade
+        fig_tree.update_traces(textinfo="label+value+percent root", texttemplate="%{label}<br>₹%{value:,.0f}<br>(%{percentRoot:.1%})")
         st.plotly_chart(fig_tree, use_container_width=True)
 
     with col_fin3:

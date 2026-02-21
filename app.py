@@ -60,7 +60,6 @@ with st.sidebar:
     selected_center = st.selectbox("Select Service Center", ["NETWORK AGGREGATE (ALL 50)"] + centers,
                                    help="Isolate KPIs and trends for a specific flagship location.")
     
-    # NEW: Global Category Filter
     categories_list = ["ALL CATEGORIES"] + sorted(df_raw['Category'].dropna().unique().tolist())
     selected_category = st.selectbox("Select Part Category", categories_list, 
                                      help="Isolate operational and financial impact for specific parts.")
@@ -99,7 +98,6 @@ if selected_category != "ALL CATEGORIES":
 
 # Top-Level KPIs
 total_demand = df_view['Qty'].sum()
-# Prevent division by zero if filters yield empty data
 if total_demand > 0:
     avg_current_tat = df_view['Current_TAT'].mean()
     avg_proposed_tat = df_view['Proposed_TAT'].mean()
@@ -115,7 +113,14 @@ tat_delta = avg_proposed_tat - avg_current_tat
 # 5. MAIN PAGE HERO BANNER
 # ==========================================
 st.title("Supply Chain Digital Twin")
-st.markdown("### Executive Dashboard")
+
+# Dynamic Subtitle based on filters
+if selected_center == "NETWORK AGGREGATE (ALL 50)" and selected_category == "ALL CATEGORIES":
+    st.markdown("### 🌐 Global Network Executive Dashboard")
+else:
+    center_name = "Network Aggregate" if selected_center == "NETWORK AGGREGATE (ALL 50)" else selected_center
+    cat_name = "All Parts" if selected_category == "ALL CATEGORIES" else selected_category
+    st.markdown(f"### 📍 Drill-Down View: {center_name} | {cat_name}")
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
@@ -127,7 +132,6 @@ if selected_center == "NETWORK AGGREGATE (ALL 50)" and selected_category == "ALL
     total_roi = (net_rev_saved + express_upside) / 10000000
     kpi4.metric("Total ROI Created", f"₹{total_roi:.2f} Cr", "+ ROI Generated", delta_color="normal", help="Combined Express Fee Upside and Churn Revenue Saved.")
 else:
-    # Micro-Visual: Sparkline for individual center/category TAT trend
     monthly_tat = df_view.groupby('Month')['Proposed_TAT'].mean().reset_index()
     fig_spark = go.Figure(go.Scatter(x=monthly_tat['Month'], y=monthly_tat['Proposed_TAT'], mode='lines', line=dict(color='#00CC96', width=4)))
     fig_spark.update_layout(xaxis=dict(visible=False), yaxis=dict(visible=False), margin=dict(l=0, r=0, t=0, b=0), height=50, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
@@ -157,7 +161,6 @@ with tab1:
     col_op1, col_op2, col_op3 = st.columns(3)
     
     with col_op1:
-        # TAT Comparison
         fig_tat = go.Figure(data=[
             go.Bar(name='Current System', x=['TAT'], y=[avg_current_tat], marker_color='#ff9999'),
             go.Bar(name='Proposed System', x=['TAT'], y=[avg_proposed_tat], marker_color='#66b3ff')
@@ -166,7 +169,6 @@ with tab1:
         st.plotly_chart(clean_layout(fig_tat), use_container_width=True)
 
     with col_op2:
-        # Wait Time Shift
         tat_bins_current = pd.cut(df_view['Current_TAT'], bins=[-1, 1, 3, 16], labels=['Instant (<1d)', 'Standard (3d)', 'Delayed (>3d)']).value_counts()
         tat_bins_proposed = pd.cut(df_view['Proposed_TAT'], bins=[-1, 1, 3, 16], labels=['Instant (<1d)', 'Standard (3d)', 'Delayed (>3d)']).value_counts()
         df_tat_shift = pd.DataFrame({'Current': tat_bins_current, 'Proposed': tat_bins_proposed}).reset_index().melt(id_vars='index', var_name='System', value_name='Volume')
@@ -176,7 +178,6 @@ with tab1:
         st.plotly_chart(clean_layout(fig_shift), use_container_width=True)
         
     with col_op3:
-        # NEW: Executive Service Level Gauge Chart
         if total_demand > 0:
             instant_volume = df_view[df_view['Proposed_TAT'] <= 1]['Qty'].sum()
             service_level = (instant_volume / total_demand) * 100
@@ -199,11 +200,12 @@ with tab1:
             }
         ))
         st.plotly_chart(clean_layout(fig_gauge), use_container_width=True)
+        
+        # Strategic Insight Callout
+        st.success("💡 **Strategic Insight:** By moving Class A & B parts to a local Consignment MSL, we bypass the 3-day logistics bottleneck, successfully serving 88% of demand instantly.")
 
-    # Put Seasonality Full Width Below
     st.markdown("---")
     df_seas = df_view.groupby(['Month', 'Category'])['Qty'].sum().reset_index()
-    # If filtered to a category, show that, otherwise show Battery/Display
     if selected_category != "ALL CATEGORIES":
         df_seas_filtered = df_seas
     else:
@@ -218,7 +220,6 @@ with tab2:
     col_fin1, col_fin2, col_fin3 = st.columns(3)
 
     with col_fin1:
-        # NEW: Formatted Financial Axes
         fig_fin = go.Figure(data=[
             go.Bar(name='Net Revenue Saved', x=['Financial Wins'], y=[net_rev_saved], marker_color='#2ca02c'),
             go.Bar(name='Express Fee Upside', x=['Financial Wins'], y=[express_upside], marker_color='#98df8a')
@@ -231,11 +232,13 @@ with tab2:
         st.plotly_chart(clean_layout(fig_fin), use_container_width=True)
 
     with col_fin2:
+        # Replaced Pie Chart with Treemap
         df_cat = df_view.groupby('Category')['Total_Value'].sum().reset_index()
-        fig_pie = px.pie(df_cat, values='Total_Value', names='Category', hole=0.5,
-                         title="Working Capital by Category", color_discrete_sequence=px.colors.sequential.Purp)
-        fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_pie, use_container_width=True)
+        fig_tree = px.treemap(df_cat, path=['Category'], values='Total_Value',
+                              title="Working Capital Allocation by Part",
+                              color='Total_Value', color_continuous_scale='Purp')
+        fig_tree.update_layout(paper_bgcolor='rgba(0,0,0,0)', margin=dict(t=40, l=10, r=10, b=10))
+        st.plotly_chart(fig_tree, use_container_width=True)
 
     with col_fin3:
         instant_df = df_view[df_view['Proposed_TAT'] <= 1]
@@ -245,6 +248,10 @@ with tab2:
                          title="Instant Serves by ABC Class", color_discrete_sequence=px.colors.qualitative.Set3)
         fig_abc.update_layout(paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_abc, use_container_width=True)
+
+    st.markdown("---")
+    # Strategic Insight Callout
+    st.info("💡 **ROI Breakdown:** The model shifts Operations from a Cost Center to a Profit Center. We recover lost churn revenue while monetizing our new delivery speed via a ₹200 Express Fee.")
 
 with tab3:
     col_data1, col_data2 = st.columns([1.5, 2])
@@ -266,7 +273,6 @@ with tab3:
         with st.expander("🔍 Click to view Raw Simulation Data Engine & Export"):
             st.info("This table displays the live algorithmic outputs for partial batch fulfillment.")
             
-            # NEW: Download Button
             csv = df_view.to_csv(index=False).encode('utf-8')
             file_name_export = f"ItTechies_Simulation_{selected_center}_{selected_category}.csv".replace(" ", "_")
             

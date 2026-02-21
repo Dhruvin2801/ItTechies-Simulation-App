@@ -15,7 +15,7 @@ st.markdown("---")
 # 2. Data Loading
 @st.cache_data
 def load_data():
-    return pd.read_csv("Simulation_Data.csv")
+  return pd.read_csv("Simulation_Data.csv")
 
 try:
     df_raw = load_data()

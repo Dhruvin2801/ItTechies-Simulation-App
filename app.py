@@ -123,7 +123,8 @@ else:
 
 kpi1, kpi2, kpi3, kpi4 = st.columns(4)
 
-kpi1.metric("Total Annual Volume", f"{total_demand:,.0f} Parts", help="Total component demand processed.")
+# KPI 1 formatted strictly as an integer to prevent decimals
+kpi1.metric("Total Annual Volume", f"{int(total_demand):,.0f} Parts", help="Total component demand processed.")
 kpi2.metric("Current Avg TAT", f"{avg_current_tat:.2f} Days", help="Wait time under the legacy 'Pull' system.")
 kpi3.metric("Proposed Avg TAT", f"{avg_proposed_tat:.2f} Days", f"{tat_delta:.2f} Days", delta_color="inverse", help="Wait time using the Consignment Push MSL strategy.")
 
@@ -215,10 +216,15 @@ with tab1:
 
     st.markdown("---")
     
-    # CORRECTED: Injected Empirical Seasonality Multipliers
+    # CORRECTED: Injected Empirical Seasonality Multipliers and Forcing Integers
     df_seas = df_view.groupby(['Month', 'Category'])['Qty'].sum().reset_index()
-    df_seas['Qty'] = np.where((df_seas['Category'] == 'Battery') & (df_seas['Month'].isin([5, 6, 7])), df_seas['Qty'] * 1.28, df_seas['Qty'])
-    df_seas['Qty'] = np.where((df_seas['Category'] == 'Display') & (df_seas['Month'].isin([7, 8])), df_seas['Qty'] * 1.21, df_seas['Qty'])
+    
+    # Apply multiplier and round to nearest whole unit
+    df_seas['Qty'] = np.where((df_seas['Category'] == 'Battery') & (df_seas['Month'].isin([5, 6, 7])), np.round(df_seas['Qty'] * 1.28), df_seas['Qty'])
+    df_seas['Qty'] = np.where((df_seas['Category'] == 'Display') & (df_seas['Month'].isin([7, 8])), np.round(df_seas['Qty'] * 1.21), df_seas['Qty'])
+    
+    # Lock as integer so no decimals show on the graph
+    df_seas['Qty'] = df_seas['Qty'].astype(int)
 
     if selected_category != "ALL CATEGORIES":
         df_seas_filtered = df_seas
@@ -271,6 +277,10 @@ with tab3:
     with col_data1:
         st.markdown("#### Top Flagship Centers by Volume")
         df_top_centers = df_view.groupby('Center')['Qty'].sum().reset_index().rename(columns={'Qty': 'Total_Repairs'}).sort_values(by='Total_Repairs', ascending=False)
+        
+        # CORRECTED: Locked as integer to prevent fractional quantities
+        df_top_centers['Total_Repairs'] = df_top_centers['Total_Repairs'].astype(int)
+        
         st.dataframe(
             df_top_centers,
             hide_index=True,

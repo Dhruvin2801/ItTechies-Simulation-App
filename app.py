@@ -168,18 +168,21 @@ with tab1:
         st.plotly_chart(clean_layout(fig_tat), use_container_width=True)
 
     with col_op2:
-        # CORRECTED: Parts Volume-Based Wait Time Shift
+        # CORRECTED: Parts Volume-Based Wait Time Shift (KeyError Fix)
         df_view['Current_Bin'] = pd.cut(df_view['Current_TAT'], bins=[-1, 1, 3, 16], labels=['Instant (<1d)', 'Standard (3d)', 'Delayed (>3d)'])
         df_view['Proposed_Bin'] = pd.cut(df_view['Proposed_TAT'], bins=[-1, 1, 3, 16], labels=['Instant (<1d)', 'Standard (3d)', 'Delayed (>3d)'])
         
         tat_bins_current = df_view.groupby('Current_Bin', observed=False)['Qty'].sum()
         tat_bins_proposed = df_view.groupby('Proposed_Bin', observed=False)['Qty'].sum()
         
-        df_tat_shift = pd.DataFrame({'Current': tat_bins_current, 'Proposed': tat_bins_proposed}).reset_index().rename(columns={'Current_Bin': 'Wait Time'}).melt(id_vars='Wait Time', var_name='System', value_name='Volume')
+        # Safely combine and force the index name so melt() never fails
+        df_combined = pd.DataFrame({'Current': tat_bins_current, 'Proposed': tat_bins_proposed})
+        df_combined.index.name = 'Wait Time'
+        df_tat_shift = df_combined.reset_index().melt(id_vars='Wait Time', var_name='System', value_name='Volume')
         
         fig_shift = px.bar(df_tat_shift, x='Wait Time', y='Volume', color='System', barmode='group',
                            title='Wait Time Shift (Parts Volume)', color_discrete_sequence=['#ff9999', '#66b3ff'])
-        st.plotly_chart(clean_layout(fig_shift), use_container_width=True)
+        st.plotly_chart(clean_layout(fig_shift), use_container_width=True)True)
         
     with col_op3:
         # CORRECTED: Exact Instant Units Service Level Calculation

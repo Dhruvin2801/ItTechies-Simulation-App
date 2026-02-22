@@ -182,7 +182,7 @@ with tab1:
         
         fig_shift = px.bar(df_tat_shift, x='Wait Time', y='Volume', color='System', barmode='group',
                            title='Wait Time Shift (Parts Volume)', color_discrete_sequence=['#ff9999', '#66b3ff'])
-        st.plotly_chart(clean_layout(fig_shift), use_container_width=True)True)
+        st.plotly_chart(clean_layout(fig_shift), use_container_width=True)
         
     with col_op3:
         # CORRECTED: Exact Instant Units Service Level Calculation
